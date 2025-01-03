@@ -1,0 +1,134 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: spatial-engine
+  namespace: spatial-tag
+  labels:
+    app: spatial-engine
+    component: core
+    tier: backend
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "50051"
+    prometheus.io/path: "/metrics"
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+  selector:
+    matchLabels:
+      app: spatial-engine
+      component: core
+      tier: backend
+  template:
+    metadata:
+      labels:
+        app: spatial-engine
+        component: core
+        tier: backend
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "50051"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+      - name: spatial-engine
+        image: spatial-tag/spatial-engine:latest
+        imagePullPolicy: Always
+        ports:
+        - name: grpc
+          containerPort: 50051
+          protocol: TCP
+        - name: metrics
+          containerPort: 9090
+          protocol: TCP
+        resources:
+          requests:
+            cpu: "1"
+            memory: "2Gi"
+          limits:
+            cpu: "2"
+            memory: "4Gi"
+        env:
+        - name: RUST_LOG
+          value: "info"
+        - name: SERVER_ADDR
+          value: "[::]:50051"
+        - name: METRICS_ADDR
+          value: "[::]:9090"
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: spatial-engine-secrets
+              key: redis_password
+        volumeMounts:
+        - name: config-volume
+          mountPath: /etc/spatial-engine/config
+          readOnly: true
+        - name: tmp-volume
+          mountPath: /tmp
+        livenessProbe:
+          grpc:
+            port: 50051
+          initialDelaySeconds: 10
+          periodSeconds: 15
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          grpc:
+            port: 50051
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 3
+          successThreshold: 1
+          failureThreshold: 3
+        startupProbe:
+          grpc:
+            port: 50051
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          failureThreshold: 30
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1000
+          runAsGroup: 1000
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+          seccompProfile:
+            type: RuntimeDefault
+      volumes:
+      - name: config-volume
+        configMap:
+          name: spatial-engine-config
+      - name: tmp-volume
+        emptyDir: {}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app: spatial-engine
+              topologyKey: kubernetes.io/hostname
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+      topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: topology.kubernetes.io/zone
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app: spatial-engine
