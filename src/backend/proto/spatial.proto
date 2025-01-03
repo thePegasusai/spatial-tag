@@ -1,0 +1,94 @@
+syntax = "proto3";
+
+package spatial.v1;
+
+option go_package = "./spatial";
+option java_package = "com.spatialtag.proto.spatial";
+
+import "google/protobuf/timestamp.proto";  // v3.0.0
+import "google/protobuf/empty.proto";      // v3.0.0
+
+// Represents a 3D spatial location with LiDAR precision
+message Location {
+  double latitude = 1;
+  double longitude = 2;
+  double altitude = 3;
+  double accuracy_meters = 4;
+}
+
+// A point in 3D space with additional LiDAR metadata
+message SpatialPoint {
+  Location location = 1;
+  double confidence_score = 2;
+  google.protobuf.Timestamp timestamp = 3;
+  string device_id = 4;
+  double signal_strength = 5;
+  bool is_occluded = 6;
+  map<string, double> environmental_factors = 7;
+}
+
+// Request to find nearby users or objects with enhanced filtering
+message ProximityRequest {
+  Location origin = 1;
+  double radius_meters = 2;
+  string user_id = 3;
+  bool include_expired = 4;
+  double min_confidence_score = 5;
+  repeated string tag_filters = 6;
+  ScanQuality minimum_quality = 7;
+  bool include_environmental_data = 8;
+}
+
+// Response containing nearby spatial points with detailed metadata
+message ProximityResponse {
+  repeated SpatialPoint points = 1;
+  double search_radius_meters = 2;
+  google.protobuf.Timestamp timestamp = 3;
+  map<string, int32> point_density_map = 4;
+  double average_confidence_score = 5;
+  repeated string excluded_regions = 6;
+}
+
+// Enhanced raw LiDAR scan data from device
+message LiDARScan {
+  repeated SpatialPoint points = 1;
+  string device_id = 2;
+  google.protobuf.Timestamp scan_time = 3;
+  ScanQuality quality = 4;
+  double battery_level = 5;
+  double device_temperature = 6;
+  map<string, string> device_metadata = 7;
+  repeated string error_codes = 8;
+}
+
+// Detailed enumeration of LiDAR scan quality levels
+enum ScanQuality {
+  SCAN_QUALITY_UNSPECIFIED = 0;
+  SCAN_QUALITY_LOW = 1;
+  SCAN_QUALITY_MEDIUM = 2;
+  SCAN_QUALITY_HIGH = 3;
+  SCAN_QUALITY_ULTRA = 4;
+  SCAN_QUALITY_DEGRADED = 5;
+  SCAN_QUALITY_ERROR = 6;
+}
+
+// Enhanced gRPC service interface for spatial operations and LiDAR processing
+service SpatialService {
+  // Process raw LiDAR scan data and return analyzed results
+  rpc ProcessLiDARScan(LiDARScan) returns (SpatialPoint);
+
+  // Get nearby points based on location and filtering criteria
+  rpc GetNearbyPoints(ProximityRequest) returns (ProximityResponse);
+
+  // Update user's current location in the spatial system
+  rpc UpdateUserLocation(SpatialPoint) returns (google.protobuf.Empty);
+
+  // Stream real-time proximity updates for a given location
+  rpc StreamProximityUpdates(ProximityRequest) returns (stream ProximityResponse);
+
+  // Process multiple LiDAR scans in a single request
+  rpc BatchProcessScans(stream LiDARScan) returns (stream SpatialPoint);
+
+  // Retrieve environmental data for a specific location
+  rpc GetEnvironmentalData(Location) returns (map<string, double>);
+}
