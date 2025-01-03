@@ -1,0 +1,19 @@
+{
+  "info": {
+    "author": "xcode",
+    "version": 1
+  },
+  "properties": {
+    "provides-namespace": true,
+    "preserves-vector-representation": true,
+    "supports-dark-mode": true,
+    "supports-dynamic-colors": true,
+    "color-space": "srgb",
+    "rendering-intent": "template",
+    "device-specific": true,
+    "high-contrast-support": true,
+    "ar-adaptation": true,
+    "color-calibration": true,
+    "dynamic-adaptation": true
+  }
+}
