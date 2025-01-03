@@ -1,0 +1,295 @@
+version: '3.8'
+
+services:
+  # API Gateway Service
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+      - "9090:9090"
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - METRICS_PORT=9090
+      - JWT_SECRET=${JWT_SECRET}
+      - REDIS_URL=redis://redis:6379
+      - MONGO_URL=mongodb://mongodb:27017/spatial_tag
+      - POSTGRES_URL=postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/spatial_tag
+    depends_on:
+      - spatial-engine
+      - tag-service
+      - user-service
+      - commerce-service
+      - redis
+      - mongodb
+      - postgres
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - spatial_tag_network
+
+  # Spatial Engine Service
+  spatial-engine:
+    build:
+      context: ./spatial-engine
+      dockerfile: Dockerfile
+    ports:
+      - "50051:50051"
+    environment:
+      - RUST_LOG=info
+      - RUST_BACKTRACE=1
+      - RUST_WORKERS=4
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/grpc_health_probe", "-addr=:50051"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          cpus: '1'
+          memory: 2G
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - spatial_tag_network
+
+  # Tag Service
+  tag-service:
+    build:
+      context: ./tag-service
+      dockerfile: Dockerfile
+    ports:
+      - "50052:50052"
+    environment:
+      - GO_ENV=development
+      - MONGO_URL=mongodb://mongodb:27017/spatial_tag
+    depends_on:
+      - mongodb
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/grpc_health_probe", "-addr=:50052"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+    networks:
+      - spatial_tag_network
+
+  # User Service
+  user-service:
+    build:
+      context: ./user-service
+      dockerfile: Dockerfile
+    ports:
+      - "50053:50053"
+    environment:
+      - NODE_ENV=development
+      - POSTGRES_URL=postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/spatial_tag
+    depends_on:
+      - postgres
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/grpc_health_probe", "-addr=:50053"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+    networks:
+      - spatial_tag_network
+
+  # Commerce Service
+  commerce-service:
+    build:
+      context: ./commerce-service
+      dockerfile: Dockerfile
+    ports:
+      - "50054:50054"
+    environment:
+      - PYTHON_ENV=development
+      - POSTGRES_URL=postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/spatial_tag
+      - STRIPE_KEY=${STRIPE_KEY}
+    depends_on:
+      - postgres
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/grpc_health_probe", "-addr=:50054"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+    networks:
+      - spatial_tag_network
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=spatial_tag
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+    networks:
+      - spatial_tag_network
+
+  # Redis for Spatial Data
+  redis:
+    image: redis:7.0-alpine
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --maxmemory 2gb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 2G
+    networks:
+      - spatial_tag_network
+
+  # MongoDB for Tag Content
+  mongodb:
+    image: mongo:6.0
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_DATABASE=spatial_tag
+    volumes:
+      - mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+    networks:
+      - spatial_tag_network
+
+  # Prometheus for Metrics Collection
+  prometheus:
+    image: prom/prometheus:v2.45.0
+    ports:
+      - "9091:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - spatial_tag_network
+
+  # Grafana for Metrics Visualization
+  grafana:
+    image: grafana/grafana:9.5.0
+    ports:
+      - "3001:3000"
+    volumes:
+      - ./monitoring/grafana.ini:/etc/grafana/grafana.ini
+      - grafana_data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
+    depends_on:
+      - prometheus
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - spatial_tag_network
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  mongodb_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+
+networks:
+  spatial_tag_network:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.20.0.0/16
+          gateway: 172.20.0.1
+    driver_opts:
+      com.docker.network.bridge.name: spatial_tag_net
+      com.docker.network.bridge.enable_icc: "true"
+      com.docker.network.bridge.enable_ip_masquerade: "true"
