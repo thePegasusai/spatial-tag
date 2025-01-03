@@ -1,0 +1,258 @@
+# fastlane 2.212.2
+
+# Import required dependencies
+require 'fastlane'
+require 'cocoapods-core' # v1.12.1
+require 'xcodeproj' # v1.22.0
+require 'sonarqube-scanner' # v2.8.2
+
+# Import configuration from other fastlane files
+import_from_git(
+  url: "https://github.com/spatialtag/fastlane-config.git",
+  branch: "main"
+)
+
+# Global constants
+WORKSPACE_PATH = "../SpatialTag.xcworkspace"
+SCHEME_NAME = "SpatialTag"
+CONFIGURATION = "Release"
+MIN_IOS_VERSION = "15.0"
+REQUIRED_DEVICE_CAPABILITIES = ["arm64", "lidar", "arkit"]
+TEST_COVERAGE_THRESHOLD = 85
+BETA_GROUPS = ["internal", "external"]
+SECURITY_SCAN_TIMEOUT = 1800
+
+default_platform(:ios)
+
+platform :ios do
+  before_all do |lane, options|
+    # Verify development environment
+    ensure_xcode_version(version: "14.0")
+    ensure_bundle_exec
+    
+    # Setup certificates and profiles
+    sync_code_signing(
+      type: match_config[:type],
+      app_identifier: match_config[:app_identifier],
+      git_url: match_config[:git_url],
+      readonly: true
+    )
+    
+    # Verify LiDAR capability
+    verify_device_capabilities(REQUIRED_DEVICE_CAPABILITIES)
+    
+    # Setup crash reporting
+    setup_ci if is_ci
+    ENV["FASTLANE_XCODEBUILD_SETTINGS_TIMEOUT"] = "120"
+  end
+
+  desc "Build iOS application"
+  lane :build do |options|
+    configuration = options[:configuration] || CONFIGURATION
+    include_bitcode = options[:include_bitcode] || false
+    
+    # Install dependencies
+    cocoapods(
+      clean_install: true,
+      repo_update: true
+    )
+    
+    # Security scan dependencies
+    audit_pods(
+      verbose: true,
+      timeout: SECURITY_SCAN_TIMEOUT
+    )
+    
+    # Build application
+    build_ios_app(
+      workspace: WORKSPACE_PATH,
+      scheme: SCHEME_NAME,
+      configuration: configuration,
+      clean: true,
+      export_method: match_config[:type],
+      include_bitcode: include_bitcode,
+      include_symbols: true,
+      export_options: {
+        provisioningProfiles: {
+          app_identifier => match_config[:profile_name]
+        },
+        compileBitcode: include_bitcode,
+        iCloudContainerEnvironment: configuration == "Release" ? "Production" : "Development"
+      }
+    )
+  end
+
+  desc "Run tests and quality checks"
+  lane :test do
+    # Code analysis
+    swiftlint(
+      strict: true,
+      reporter: "junit",
+      config_file: ".swiftlint.yml"
+    )
+    
+    # Run tests
+    scan(
+      workspace: WORKSPACE_PATH,
+      scheme: SCHEME_NAME,
+      devices: ["iPhone 12 Pro", "iPhone 13 Pro", "iPhone 14 Pro"],
+      clean: true,
+      code_coverage: true,
+      fail_build: true
+    )
+    
+    # Security scanning
+    sonar(
+      project_key: "SpatialTag-iOS",
+      project_version: get_version_number,
+      sources_path: "SpatialTag",
+      sonar_runner_args: "-Dsonar.coverage.exclusions=**/*Tests*/**"
+    )
+    
+    # Verify coverage threshold
+    verify_test_coverage(min_coverage_percentage: TEST_COVERAGE_THRESHOLD)
+  end
+
+  desc "Deploy to TestFlight"
+  lane :beta do
+    # Verify branch
+    ensure_git_branch(branch: "develop")
+    
+    # Increment build number
+    increment_build_number(
+      build_number: latest_testflight_build_number + 1
+    )
+    
+    # Build and upload
+    build(configuration: "Beta")
+    
+    upload_to_testflight(
+      skip_waiting_for_build_processing: true,
+      distribute_external: true,
+      groups: BETA_GROUPS,
+      changelog: generate_changelog
+    )
+    
+    # Notify team
+    slack(
+      message: "New beta build #{get_build_number} uploaded to TestFlight!",
+      success: true
+    )
+  end
+
+  desc "Deploy to App Store"
+  lane :release do
+    # Verify branch and status
+    ensure_git_branch(branch: "main")
+    ensure_git_status_clean
+    
+    # Verify app store compliance
+    verify_app_store_requirements
+    
+    # Generate screenshots
+    capture_screenshots(
+      workspace: WORKSPACE_PATH,
+      scheme: SCHEME_NAME
+    )
+    
+    # Build and upload
+    build(configuration: CONFIGURATION)
+    
+    upload_to_app_store(
+      force: true,
+      skip_metadata: false,
+      skip_screenshots: false,
+      phased_release: true,
+      submission_information: {
+        add_id_info_uses_idfa: false,
+        export_compliance_uses_encryption: true,
+        export_compliance_encryption_updated: false
+      }
+    )
+    
+    # Tag release
+    add_git_tag(tag: get_version_number)
+    push_git_tags
+  end
+
+  after_all do |lane, options|
+    # Clean up
+    clean_build_artifacts
+    
+    # Archive logs
+    zip(
+      path: "fastlane/logs",
+      output_path: "fastlane/archive/logs-#{Time.now.strftime('%Y%m%d')}.zip"
+    )
+    
+    # Notify completion
+    notification(subtitle: "Fastlane finished '#{lane}'", message: "Success!")
+  end
+
+  error do |lane, exception, options|
+    # Report failure
+    slack(
+      message: "Lane '#{lane}' failed with error: #{exception.message}",
+      success: false,
+      payload: { "Error Details" => exception.backtrace.first(10) }
+    )
+    
+    # Cleanup on error
+    clean_build_artifacts
+    reset_git_repo(force: true)
+  end
+end
+
+# Helper methods
+private
+
+def verify_device_capabilities(required_capabilities)
+  project = Xcodeproj::Project.open("../SpatialTag.xcodeproj")
+  target = project.targets.first
+  
+  build_settings = target.build_configurations.map(&:build_settings)
+  capabilities = build_settings.flat_map { |settings| settings["REQUIRED_DEVICE_CAPABILITIES"] || [] }
+  
+  missing_capabilities = required_capabilities - capabilities
+  unless missing_capabilities.empty?
+    UI.user_error!("Missing required device capabilities: #{missing_capabilities.join(', ')}")
+  end
+end
+
+def verify_app_store_requirements
+  UI.message "Verifying App Store requirements..."
+  
+  # Verify minimum iOS version
+  verify_xcode_version
+  verify_minimum_ios_version(MIN_IOS_VERSION)
+  
+  # Verify privacy declarations
+  verify_privacy_declarations
+  
+  # Verify entitlements
+  verify_entitlements
+end
+
+def generate_changelog
+  changes = changelog_from_git_commits(
+    between: [last_git_tag, "HEAD"],
+    pretty: "- %s",
+    date_format: "short",
+    match_lightweight_tag: false,
+    merge_commit_filtering: "exclude_merges"
+  )
+  
+  "Build #{get_build_number}\n\nChanges:\n#{changes}"
+end
+
+def verify_test_coverage(min_coverage_percentage:)
+  coverage_file = "fastlane/test_output/coverage/coverage.xml"
+  unless File.exist?(coverage_file)
+    UI.user_error!("Coverage file not found at #{coverage_file}")
+  end
+  
+  coverage = parse_coverage_file(coverage_file)
+  if coverage < min_coverage_percentage
+    UI.user_error!("Test coverage #{coverage}% is below required #{min_coverage_percentage}%")
+  end
+end
