@@ -1,0 +1,246 @@
+name: Backend CI
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'src/backend/**'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'src/backend/**'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20.x'
+  GO_VERSION: '1.21'
+  RUST_VERSION: '1.74'
+  PYTHON_VERSION: '3.11'
+  DOCKER_BUILDKIT: '1'
+  BUILDKIT_PROGRESS: 'plain'
+
+permissions:
+  contents: read
+  packages: write
+  deployments: write
+  security-events: write
+
+jobs:
+  test:
+    name: Test ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [api-gateway, spatial-engine, tag-service, commerce-service]
+      fail-fast: false
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        if: matrix.service == 'api-gateway'
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: src/backend/${{ matrix.service }}/package-lock.json
+
+      - name: Setup Rust
+        if: matrix.service == 'spatial-engine'
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+          components: clippy, rustfmt
+          override: true
+
+      - name: Setup Go
+        if: matrix.service == 'tag-service'
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Setup Python
+        if: matrix.service == 'commerce-service'
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        working-directory: src/backend/${{ matrix.service }}
+        run: |
+          if [ "${{ matrix.service }}" = "api-gateway" ]; then
+            npm ci
+            npm audit
+          elif [ "${{ matrix.service }}" = "spatial-engine" ]; then
+            cargo fetch
+            cargo audit
+          elif [ "${{ matrix.service }}" = "tag-service" ]; then
+            go mod download
+            go mod verify
+          else
+            pip install -r requirements.txt
+            pip audit
+          fi
+
+      - name: Run linting and static analysis
+        working-directory: src/backend/${{ matrix.service }}
+        run: |
+          if [ "${{ matrix.service }}" = "api-gateway" ]; then
+            npm run lint
+            npm run format -- --check
+          elif [ "${{ matrix.service }}" = "spatial-engine" ]; then
+            cargo fmt -- --check
+            cargo clippy -- -D warnings
+          elif [ "${{ matrix.service }}" = "tag-service" ]; then
+            go fmt ./...
+            go vet ./...
+          else
+            black --check .
+            pylint ./**/*.py
+          fi
+
+      - name: Run unit tests with coverage
+        working-directory: src/backend/${{ matrix.service }}
+        run: |
+          if [ "${{ matrix.service }}" = "api-gateway" ]; then
+            npm run test:coverage
+          elif [ "${{ matrix.service }}" = "spatial-engine" ]; then
+            cargo test --all-features --no-fail-fast
+          elif [ "${{ matrix.service }}" = "tag-service" ]; then
+            go test -v -race -coverprofile=coverage.txt ./...
+          else
+            pytest --cov=. --cov-report=xml
+          fi
+
+      - name: Run security scanning
+        uses: snyk/actions/node@master
+        if: matrix.service == 'api-gateway'
+        with:
+          args: --severity-threshold=high
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+      - name: SonarQube analysis
+        uses: sonarsource/sonarqube-scan-action@master
+        with:
+          args: >
+            -Dsonar.projectKey=${{ matrix.service }}
+            -Dsonar.sources=src/backend/${{ matrix.service }}
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./src/backend/${{ matrix.service }}/coverage.xml
+          flags: ${{ matrix.service }}
+
+      - name: Report to Datadog
+        uses: datadog/action-ci-reporting@v1
+        with:
+          api-key: ${{ secrets.DATADOG_API_KEY }}
+          service: ${{ matrix.service }}
+          env: ci
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [api-gateway, spatial-engine, tag-service, commerce-service]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+        with:
+          buildkitd-flags: --debug
+
+      - name: Login to Docker Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ secrets.DOCKER_REGISTRY }}
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v4
+        with:
+          context: src/backend/${{ matrix.service }}
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_REGISTRY }}/${{ matrix.service }}:${{ github.sha }}
+            ${{ secrets.DOCKER_REGISTRY }}/${{ matrix.service }}:latest
+          cache-from: type=registry,ref=${{ secrets.DOCKER_REGISTRY }}/${{ matrix.service }}:buildcache
+          cache-to: type=registry,ref=${{ secrets.DOCKER_REGISTRY }}/${{ matrix.service }}:buildcache,mode=max
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@v1
+        with:
+          image-ref: ${{ secrets.DOCKER_REGISTRY }}/${{ matrix.service }}:${{ github.sha }}
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'latest'
+
+      - name: Configure kubectl
+        run: |
+          echo "${{ secrets.KUBE_CONFIG }}" > kubeconfig.yaml
+          chmod 600 kubeconfig.yaml
+          export KUBECONFIG=kubeconfig.yaml
+
+      - name: Deploy to staging
+        run: |
+          kubectl apply -f k8s/staging/
+          kubectl rollout status deployment/api-gateway
+          kubectl rollout status deployment/spatial-engine
+          kubectl rollout status deployment/tag-service
+          kubectl rollout status deployment/commerce-service
+
+      - name: Verify deployment
+        run: |
+          for service in api-gateway spatial-engine tag-service commerce-service; do
+            kubectl wait --for=condition=available deployment/$service --timeout=300s
+            kubectl get deployment $service -o jsonpath='{.status.conditions[?(@.type=="Available")].status}'
+          done
+
+      - name: Run health checks
+        run: |
+          for service in api-gateway spatial-engine tag-service commerce-service; do
+            kubectl exec deployment/$service -- curl -f http://localhost:8080/health
+          done
+
+      - name: Report deployment status
+        if: always()
+        uses: datadog/action-ci-reporting@v1
+        with:
+          api-key: ${{ secrets.DATADOG_API_KEY }}
+          service: backend-deployment
+          env: staging
