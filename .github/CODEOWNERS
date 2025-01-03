@@ -1,0 +1,31 @@
+*                               @project-leads
+
+# Backend services ownership
+src/backend/*                   @backend-team
+
+# Spatial engine specialized ownership
+src/backend/spatial-engine/*    @spatial-team
+
+# iOS application ownership
+src/ios/*                       @ios-team
+
+# Infrastructure configuration ownership
+infrastructure/*                @devops-team
+
+# CI/CD workflow ownership
+.github/workflows/*             @devops-team
+
+# Protocol buffer definitions requiring multi-team review
+src/backend/proto/*             @backend-team @ios-team
+
+# Database migrations requiring DBA review
+src/backend/migrations/*        @backend-team @dba-team
+
+# Security-sensitive components
+src/backend/security/*          @security-team @backend-team
+
+# All protocol buffer files regardless of location
+*.proto                         @backend-team @ios-team
+
+# Technical documentation
+docs/*                          @tech-writers @project-leads
