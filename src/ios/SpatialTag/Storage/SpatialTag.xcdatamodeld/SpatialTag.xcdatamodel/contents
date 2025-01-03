@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="21754" systemVersion="22G91" minimumToolsVersion="Automatic" sourceLanguage="Swift" usedWithCloudKit="NO" userDefinedModelVersionIdentifier="">
+    <entity name="TagEntity" representedClassName="TagEntity" syncable="YES">
+        <attribute name="altitude" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="content" attributeType="String"/>
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="creatorId" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="engagementScore" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="expiresAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="interactionCount" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="isVisible" attributeType="Boolean" defaultValueString="YES" usesScalarValueType="YES"/>
+        <attribute name="latitude" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="longitude" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="spatialAnchor" optional="YES" attributeType="Binary"/>
+        <attribute name="validationHash" attributeType="String"/>
+        <attribute name="viewCount" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="visibilityRadius" attributeType="Double" defaultValueString="50" usesScalarValueType="YES"/>
+        <relationship name="creator" optional="NO" maxCount="1" deletionRule="Nullify" destinationEntity="ProfileEntity" inverseName="createdTags" inverseEntity="ProfileEntity"/>
+        <fetchIndex name="expirationIndex">
+            <fetchIndexElement property="expiresAt" type="Binary" order="ascending"/>
+            <fetchIndexElement property="isVisible" type="Binary" order="ascending"/>
+        </fetchIndex>
+        <fetchIndex name="locationIndex">
+            <fetchIndexElement property="latitude" type="Binary" order="ascending"/>
+            <fetchIndexElement property="longitude" type="Binary" order="ascending"/>
+            <fetchIndexElement property="altitude" type="Binary" order="ascending"/>
+        </fetchIndex>
+        <fetchIndex name="performanceIndex">
+            <fetchIndexElement property="interactionCount" type="Binary" order="ascending"/>
+            <fetchIndexElement property="viewCount" type="Binary" order="ascending"/>
+            <fetchIndexElement property="engagementScore" type="Binary" order="ascending"/>
+        </fetchIndex>
+        <uniquenessConstraints>
+            <uniquenessConstraint>
+                <constraint value="id"/>
+            </uniquenessConstraint>
+        </uniquenessConstraints>
+    </entity>
+    <entity name="ProfileEntity" representedClassName="ProfileEntity" syncable="YES">
+        <attribute name="averageEngagement" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="deviceIdentifier" attributeType="String"/>
+        <attribute name="displayName" attributeType="String"/>
+        <attribute name="encryptedData" optional="YES" attributeType="Binary"/>
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="isVisible" attributeType="Boolean" defaultValueString="YES" usesScalarValueType="YES"/>
+        <attribute name="lastActive" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="lastLatitude" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="lastLongitude" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="points" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="preferences" attributeType="Binary"/>
+        <attribute name="statusLevel" attributeType="String"/>
+        <attribute name="tagCount" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="visibilityRadius" attributeType="Double" defaultValueString="50" usesScalarValueType="YES"/>
+        <relationship name="createdTags" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="TagEntity" inverseName="creator" inverseEntity="TagEntity"/>
+        <fetchIndex name="activityIndex">
+            <fetchIndexElement property="lastActive" type="Binary" order="ascending"/>
+            <fetchIndexElement property="tagCount" type="Binary" order="ascending"/>
+        </fetchIndex>
+        <fetchIndex name="locationIndex">
+            <fetchIndexElement property="lastLatitude" type="Binary" order="ascending"/>
+            <fetchIndexElement property="lastLongitude" type="Binary" order="ascending"/>
+        </fetchIndex>
+        <fetchIndex name="statusIndex">
+            <fetchIndexElement property="statusLevel" type="Binary" order="ascending"/>
+            <fetchIndexElement property="points" type="Binary" order="ascending"/>
+            <fetchIndexElement property="averageEngagement" type="Binary" order="ascending"/>
+        </fetchIndex>
+        <uniquenessConstraints>
+            <uniquenessConstraint>
+                <constraint value="id"/>
+            </uniquenessConstraint>
+        </uniquenessConstraints>
+    </entity>
+    <entity name="SpatialCacheEntity" representedClassName="SpatialCacheEntity" syncable="YES">
+        <attribute name="areaIdentifier" attributeType="String"/>
+        <attribute name="centerLatitude" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="centerLongitude" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="dataSize" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="dataVersion" attributeType="String"/>
+        <attribute name="expirationDate" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="isValid" attributeType="Boolean" defaultValueString="YES" usesScalarValueType="YES"/>
+        <attribute name="radius" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="spatialData" attributeType="Binary"/>
+        <attribute name="timestamp" attributeType="Date" usesScalarValueType="NO"/>
+        <fetchIndex name="areaIndex">
+            <fetchIndexElement property="centerLatitude" type="Binary" order="ascending"/>
+            <fetchIndexElement property="centerLongitude" type="Binary" order="ascending"/>
+            <fetchIndexElement property="radius" type="Binary" order="ascending"/>
+        </fetchIndex>
+        <fetchIndex name="timestampIndex">
+            <fetchIndexElement property="timestamp" type="Binary" order="ascending"/>
+            <fetchIndexElement property="isValid" type="Binary" order="ascending"/>
+            <fetchIndexElement property="expirationDate" type="Binary" order="ascending"/>
+        </fetchIndex>
+        <fetchIndex name="versionIndex">
+            <fetchIndexElement property="dataVersion" type="Binary" order="ascending"/>
+            <fetchIndexElement property="dataSize" type="Binary" order="ascending"/>
+        </fetchIndex>
+        <uniquenessConstraints>
+            <uniquenessConstraint>
+                <constraint value="areaIdentifier"/>
+            </uniquenessConstraint>
+        </uniquenessConstraints>
+    </entity>
+    <configuration name="Default">
+        <memberEntity name="TagEntity"/>
+        <memberEntity name="ProfileEntity"/>
+        <memberEntity name="SpatialCacheEntity"/>
+    </configuration>
+</model>
