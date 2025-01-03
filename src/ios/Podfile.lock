@@ -1,0 +1,127 @@
+PODS:
+  - Alamofire (5.8.1)
+  - ARKit (6.0.0)
+  - CryptoSwift (1.8.0)
+  - DatadogSDK (2.5.0)
+  - Firebase/Analytics (10.0.0):
+    - Firebase/Core
+  - Firebase/Core (10.0.0):
+    - Firebase/CoreOnly
+    - FirebaseAnalytics (~> 10.0.0)
+  - Firebase/CoreOnly (10.0.0)
+  - Firebase/Crashlytics (10.0.0):
+    - Firebase/CoreOnly
+    - FirebaseCrashlytics (~> 10.0.0)
+  - Firebase/Messaging (10.0.0):
+    - Firebase/CoreOnly
+    - FirebaseMessaging (~> 10.0.0)
+  - Firebase/Performance (10.0.0):
+    - Firebase/CoreOnly
+    - FirebasePerformance (~> 10.0.0)
+  - FirebaseAnalytics (10.0.0)
+  - FirebaseCrashlytics (10.0.0)
+  - FirebaseMessaging (10.0.0)
+  - FirebasePerformance (10.0.0)
+  - gRPC-Swift (1.15.0)
+  - KeychainAccess (4.2.2)
+  - lottie-ios (4.3.3)
+  - MapboxCoreNavigation (2.14.0)
+  - MapboxMaps (10.16.0)
+  - MapboxNavigation (2.14.0):
+    - MapboxCoreNavigation (= 2.14.0)
+  - Nimble (12.3.0)
+  - PromiseKit (8.1.1)
+  - Quick (7.3.0)
+  - R.swift (7.3.2)
+  - RxBlocking (6.6.0):
+    - RxSwift (= 6.6.0)
+  - RxCocoa (6.6.0):
+    - RxRelay (= 6.6.0)
+    - RxSwift (= 6.6.0)
+  - RxRelay (6.6.0):
+    - RxSwift (= 6.6.0)
+  - RxSwift (6.6.0)
+  - RxTest (6.6.0):
+    - RxSwift (= 6.6.0)
+  - SDWebImage (5.18.3):
+    - SDWebImage/Core (= 5.18.3)
+  - SDWebImage/Core (5.18.3)
+  - Sentry (8.15.2)
+  - Stripe (23.18.0)
+  - StripeApplePay (23.18.0):
+    - Stripe (= 23.18.0)
+  - SwiftGen (6.6.2)
+  - SwiftLint (0.53.0)
+  - SwiftProtobuf (1.25.1)
+  - SwiftyJSON (5.0.1)
+
+DEPENDENCIES:
+  - Alamofire
+  - ARKit (~> 6.0)
+  - CryptoSwift
+  - DatadogSDK
+  - Firebase/Analytics
+  - Firebase/Core (~> 10.0.0)
+  - Firebase/Crashlytics
+  - Firebase/Messaging (~> 10.0.0)
+  - Firebase/Performance
+  - gRPC-Swift
+  - KeychainAccess
+  - lottie-ios
+  - MapboxCoreNavigation
+  - MapboxMaps
+  - MapboxNavigation
+  - Nimble
+  - PromiseKit
+  - Quick
+  - R.swift
+  - RxBlocking
+  - RxCocoa
+  - RxSwift
+  - RxTest
+  - SDWebImage
+  - Sentry
+  - Stripe
+  - StripeApplePay
+  - SwiftGen
+  - SwiftLint
+  - SwiftProtobuf
+  - SwiftyJSON
+
+SPEC CHECKSUMS:
+  Alamofire: 3ca42e259043ee0dc5c0cdd76c4bc568b8e42af7
+  ARKit: a1bc89f77d0ca54e28c7f7f715e0638d12cc8f8d
+  CryptoSwift: 52aaf3fce7337552863b1d952e408085f0e65030
+  DatadogSDK: 4ca55c23791716379adb49c9d78a0f679258510f
+  Firebase: 2d33d37d2b36e3e14145f9c5e42230f89c0d5e9a
+  FirebaseAnalytics: 9921a52739f4ab66c94af32c3d03f8ce1a4927d2
+  FirebaseCrashlytics: 9e3a8c4aa8e5b14b8d6a2b12c7c8f46aa5b7a7c1
+  FirebaseMessaging: 8916bf5edb1dbf0a2eab7a4e5c8925ef8f6f8d2b
+  FirebasePerformance: 8f1c8c451615e8f5c05d8b46f1f7ee4b5c62b0f8
+  gRPC-Swift: 4b9f19d97894fd5e19fb9a0c4c38fd0c89724b5c
+  KeychainAccess: c0c4f7f38f6fc7bbe58f5702e25f7bd2f65abf51
+  lottie-ios: 25e7b2675dad5c3ddad369ac9baab03560c5bfdd
+  MapboxCoreNavigation: 9b8e787b5c93fd82c88b7f0d5e5b1e7e2d08c1c6
+  MapboxMaps: 85610575a8871ee6f4369c1b62d6f03127fc2ef8
+  MapboxNavigation: 6d5e2e1c3f50a1e5f6e99b01b3f6e2c8a8e8a4f1
+  Nimble: a0e6f95b4b91f8668a134d4288a19f22dcd9f496
+  PromiseKit: d1be44b474e5acb30eff7e1bb16d6bd1c402e8c7
+  Quick: 271fc7e3c5f9b3e2fda293e2780b5b0c8261c3ac
+  R.swift: 0af0d882f49f03711415cb4e5215daa977d8a480
+  RxBlocking: 0b7b44dac420d39835592072cb60b56d3eb9eadf
+  RxCocoa: 44a80de90e25b739b5aeaae3c8c371a32e3343cc
+  RxRelay: 45eaa5db8ee4fb50e5ebd57deec0159e97fa51e6
+  RxSwift: a4b44f7d24599f674deebd1818eab82e58410632
+  RxTest: a23f26bb53a5e144b1b7e2027a96be581922330d
+  SDWebImage: 96e0c18ef14010b7485210e92fac888587ebb958
+  Sentry: 63ca44b1c37d41c0c1f10f46a1d3ad1a81d9dd87
+  Stripe: 2b2decd03146e08a350960d0ae06e31747e162a7
+  StripeApplePay: 6e9aebd3d245f6e0d68d7b1e04e42dded95e6b98
+  SwiftGen: 1366a7f71aeef49954ca5a63ba4bef6b0f24138c
+  SwiftLint: 5ce4d6a8ff83f1b5fd5ad5dbf30965d35af65e44
+  SwiftProtobuf: 69f02cd54fb01cf61a6c0b525c9c1ec92a92e75f
+  SwiftyJSON: 2f33a42c6fbc52764d96f13368585094bfd8aa5e
+
+PODFILE CHECKSUM: 7d8e9c5f3b2d0c9b35a6c1b9d8e7f8a4d2f3e9b1
+
+COCOAPODS: 1.14.0
