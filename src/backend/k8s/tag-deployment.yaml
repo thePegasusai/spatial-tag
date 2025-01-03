@@ -1,0 +1,139 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tag-service
+  namespace: spatial-tag
+  labels:
+    app: tag-service
+    version: v1
+    component: backend
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "50051"
+    prometheus.io/path: "/metrics"
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+  selector:
+    matchLabels:
+      app: tag-service
+      version: v1
+  template:
+    metadata:
+      labels:
+        app: tag-service
+        version: v1
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "50051"
+        prometheus.io/path: "/metrics"
+        vault.hashicorp.com/agent-inject: "true"
+        vault.hashicorp.com/role: "tag-service"
+        vault.hashicorp.com/agent-inject-status: "update"
+    spec:
+      serviceAccountName: tag-service-sa
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      containers:
+      - name: tag-service
+        image: golang:1.21-alpine
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: grpc
+          containerPort: 50051
+          protocol: TCP
+        - name: metrics
+          containerPort: 9090
+          protocol: TCP
+        resources:
+          requests:
+            cpu: "500m"
+            memory: "1Gi"
+          limits:
+            cpu: "1"
+            memory: "2Gi"
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
+        livenessProbe:
+          grpc:
+            port: 50051
+          initialDelaySeconds: 15
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          grpc:
+            port: 50051
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 3
+          successThreshold: 1
+        startupProbe:
+          grpc:
+            port: 50051
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          failureThreshold: 30
+        envFrom:
+        - configMapRef:
+            name: tag-service-config
+        - secretRef:
+            name: tag-service-secrets
+        env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+        - name: vault-secrets
+          mountPath: /vault/secrets
+          readOnly: true
+      volumes:
+      - name: tmp
+        emptyDir: {}
+      - name: vault-secrets
+        emptyDir:
+          medium: Memory
+      nodeSelector:
+        kubernetes.io/os: linux
+        node-type: application
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app: tag-service
+              topologyKey: kubernetes.io/hostname
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 1
+            preference:
+              matchExpressions:
+              - key: node-type
+                operator: In
+                values:
+                - application
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule
