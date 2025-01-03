@@ -1,0 +1,209 @@
+name: iOS CI Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'src/ios/**'
+      - '.github/workflows/ios-ci.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'src/ios/**'
+      - '.github/workflows/ios-ci.yml'
+
+env:
+  DEVELOPER_DIR: /Applications/Xcode_14.3.app/Contents/Developer
+  WORKSPACE: src/ios/SpatialTag.xcworkspace
+  SCHEME: SpatialTag
+  CONFIGURATION: Release
+  MIN_IOS_VERSION: "15.0"
+  REQUIRED_DEVICE_CAPABILITY: "lidar"
+  SECURITY_SCAN_LEVEL: "high"
+  DEPLOYMENT_STRATEGY: "phased"
+
+jobs:
+  validate:
+    name: Validate Requirements
+    runs-on: macos-13
+    timeout-minutes: 30
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          
+      - name: Setup Ruby Environment
+        uses: actions/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: true
+          
+      - name: Cache Dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/Library/Caches/CocoaPods
+            Pods
+            vendor/bundle
+          key: ${{ runner.os }}-pods-${{ hashFiles('**/Podfile.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pods-
+            
+      - name: Validate Environment
+        run: |
+          xcodebuild -version
+          pod --version
+          fastlane --version
+          
+      - name: Verify LiDAR Capability
+        run: |
+          ./src/ios/ci/build.sh validate_environment
+          
+  security-scan:
+    name: Security Analysis
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+        
+      - name: Run Dependency Scan
+        uses: anchore/scan-action@v3
+        with:
+          path: "src/ios"
+          fail-build: true
+          severity-cutoff: "high"
+          
+      - name: Upload Security Report
+        uses: actions/upload-artifact@v3
+        with:
+          name: security-report
+          path: anchore-reports/
+          
+  build:
+    name: Build Application
+    needs: security-scan
+    runs-on: macos-13
+    timeout-minutes: 60
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+        
+      - name: Setup Ruby Environment
+        uses: actions/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          
+      - name: Install Dependencies
+        run: |
+          bundle install
+          pod install --repo-update
+          
+      - name: Build Application
+        run: |
+          ./src/ios/ci/build.sh build_app
+        env:
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
+          
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-artifacts
+          path: build/
+          
+  test:
+    name: Run Tests
+    needs: build
+    runs-on: macos-13
+    timeout-minutes: 45
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+        
+      - name: Download Build Artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: build-artifacts
+          path: build/
+          
+      - name: Run Test Suite
+        run: |
+          ./src/ios/ci/test.sh
+        env:
+          DEVELOPER_DIR: ${{ env.DEVELOPER_DIR }}
+          
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-results
+          path: |
+            DerivedData/coverage/
+            fastlane/test_output/
+            
+  deploy:
+    name: Deploy Build
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+    needs: test
+    runs-on: macos-13
+    timeout-minutes: 60
+    environment:
+      name: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+        
+      - name: Download Build Artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: build-artifacts
+          
+      - name: Setup Deployment
+        run: |
+          ./src/ios/ci/deploy.sh setup_deployment
+        env:
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+          
+      - name: Deploy to TestFlight/AppStore
+        run: |
+          ./src/ios/ci/deploy.sh
+        env:
+          DEPLOY_TARGET: ${{ github.ref == 'refs/heads/main' && 'appstore' || 'testflight' }}
+          
+      - name: Monitor Deployment
+        uses: datadog/action@v1
+        with:
+          api_key: ${{ secrets.DATADOG_API_KEY }}
+          metrics: |
+            deployment.duration
+            deployment.success
+            deployment.errors
+            
+  notify:
+    name: Send Notifications
+    needs: [deploy]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+      - name: Notify Success
+        if: success()
+        run: |
+          curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
+          -H 'Content-Type: application/json' \
+          -d '{"text":"✅ iOS CI Pipeline completed successfully"}'
+          
+      - name: Notify Failure
+        if: failure()
+        run: |
+          curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
+          -H 'Content-Type: application/json' \
+          -d '{"text":"❌ iOS CI Pipeline failed"}'
