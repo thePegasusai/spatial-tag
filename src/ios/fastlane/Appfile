@@ -1,0 +1,16 @@
+# fastlane 2.217.0
+
+# The bundle identifier of your iOS application
+app_identifier("com.spatialtag.app")
+
+# Your Apple Developer Portal email address
+apple_id("developer@spatialtag.com")
+
+# Developer Portal Team ID
+team_id("SPATIAL_TEAM_ID")
+
+# App Store Connect Team ID
+itc_team_id("SPATIAL_ITC_TEAM_ID")
+
+# For more information about the Appfile, see:
+# https://docs.fastlane.tools/advanced/#appfile
