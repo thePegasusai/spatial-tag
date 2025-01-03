@@ -1,0 +1,92 @@
+[package]
+name = "spatial-engine"
+version = "0.1.0"
+edition = "2021"
+description = "High-performance LiDAR processing and spatial calculations engine"
+authors = ["Spatial Tag Team"]
+license = "Proprietary"
+
+[lib]
+name = "spatial_engine"
+path = "src/lib.rs"
+
+[[bin]]
+name = "spatial-engine"
+path = "src/main.rs"
+
+[dependencies]
+# Async Runtime - v1.32.0
+tokio = { version = "1.32", features = ["full", "rt-multi-thread", "macros"] }
+
+# gRPC Framework - v0.10.0
+tonic = { version = "0.10", features = ["transport", "tls", "compression"] }
+
+# Protocol Buffers - v0.12.0
+prost = "0.12"
+prost-types = "0.12"
+
+# Logging and Instrumentation - v0.1.40
+tracing = { version = "0.1", features = ["attributes", "async-await"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+
+# Error Handling - v1.0.75
+anyhow = "1.0"
+thiserror = "1.0"
+
+# Serialization - v1.0.188
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Redis Client - v0.23.3
+redis = { version = "0.23", features = ["tokio-comp", "connection-manager", "aio", "cluster"] }
+
+# Linear Algebra - v0.32.3
+nalgebra = { version = "0.32", features = ["serde-serialize"] }
+
+# Parallel Processing - v1.7.0
+rayon = "1.7"
+
+# Metrics Collection - v0.21.0
+metrics = { version = "0.21", features = ["std"] }
+metrics-exporter-prometheus = "0.12"
+
+# Additional Dependencies
+futures = "0.3"
+async-trait = "0.1"
+bytes = "1.5"
+pin-project = "1.1"
+parking_lot = "0.12"
+
+[features]
+default = ["async-runtime", "metrics", "redis-cache"]
+async-runtime = ["tokio/full", "tonic/transport"]
+metrics = ["metrics/default"]
+redis-cache = ["redis/tokio-comp"]
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+debug = false
+strip = true
+
+[profile.dev]
+opt-level = 1
+debug = true
+
+[build-dependencies]
+tonic-build = "0.10"
+
+[dev-dependencies]
+tokio-test = "0.4"
+mockall = "0.11"
+criterion = "0.5"
+test-case = "3.1"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[package.metadata.cargo-udeps]
+ignore = []
