@@ -1,0 +1,210 @@
+syntax = "proto3";
+
+package commerce.v1;
+
+import "google/protobuf/timestamp.proto";  // v3.0.0
+import "google/protobuf/empty.proto";      // v3.0.0
+import "../proto/user.proto";
+
+option go_package = "./commerce";
+option java_package = "com.spatialtag.proto.commerce";
+option java_multiple_files = true;
+
+// Represents an item in a user's wishlist with enhanced sharing and tracking capabilities
+message WishlistItem {
+  string id = 1;
+  string product_id = 2;
+  string name = 3;
+  double price = 4;
+  string currency = 5;
+  string image_url = 6;
+  bool is_shared = 7;
+  repeated string shared_with_users = 8;
+  VisibilityLevel visibility = 9;
+  google.protobuf.Timestamp added_at = 10;
+  google.protobuf.Timestamp last_viewed_at = 11;
+  int32 view_count = 12;
+  bool is_favorite = 13;
+}
+
+// Represents a user's wishlist with advanced sharing and collaboration features
+message Wishlist {
+  string id = 1;
+  string user_id = 2;
+  repeated WishlistItem items = 3;
+  bool is_shared = 4;
+  VisibilityLevel visibility = 5;
+  repeated string collaborator_ids = 6;
+  CollaborationSettings collaboration_settings = 7;
+  google.protobuf.Timestamp updated_at = 8;
+  int32 total_items = 9;
+  double total_value = 10;
+}
+
+// Controls collaboration settings for shared wishlists
+message CollaborationSettings {
+  bool allow_item_addition = 1;
+  bool allow_item_removal = 2;
+  bool allow_price_updates = 3;
+  bool notify_on_changes = 4;
+}
+
+// Represents a payment intent with comprehensive tracking and security features
+message PaymentIntent {
+  string id = 1;
+  string user_id = 2;
+  string stripe_payment_intent_id = 3;
+  double amount = 4;
+  string currency = 5;
+  PaymentStatus status = 6;
+  PaymentType type = 7;
+  string description = 8;
+  map<string, string> metadata = 9;
+  bool requires_3ds = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp processed_at = 12;
+  string error_message = 13;
+  bool is_refundable = 14;
+}
+
+// Enumeration of possible payment types
+enum PaymentType {
+  PAYMENT_TYPE_UNSPECIFIED = 0;
+  PAYMENT_TYPE_CARD = 1;
+  PAYMENT_TYPE_BANK_TRANSFER = 2;
+  PAYMENT_TYPE_DIGITAL_WALLET = 3;
+}
+
+// Enumeration of possible payment statuses with detailed tracking
+enum PaymentStatus {
+  PAYMENT_STATUS_UNSPECIFIED = 0;
+  PAYMENT_STATUS_PENDING = 1;
+  PAYMENT_STATUS_PROCESSING = 2;
+  PAYMENT_STATUS_REQUIRES_ACTION = 3;
+  PAYMENT_STATUS_COMPLETED = 4;
+  PAYMENT_STATUS_FAILED = 5;
+  PAYMENT_STATUS_REFUNDED = 6;
+  PAYMENT_STATUS_PARTIALLY_REFUNDED = 7;
+  PAYMENT_STATUS_DISPUTED = 8;
+}
+
+// Controls the visibility of wishlists and items
+enum VisibilityLevel {
+  VISIBILITY_PRIVATE = 0;
+  VISIBILITY_FRIENDS = 1;
+  VISIBILITY_PUBLIC = 2;
+}
+
+// Request messages
+message CreateWishlistRequest {
+  string user_id = 1;
+  VisibilityLevel visibility = 2;
+  CollaborationSettings collaboration_settings = 3;
+}
+
+message GetWishlistRequest {
+  string wishlist_id = 1;
+  string user_id = 2;
+}
+
+message UpdateWishlistRequest {
+  string wishlist_id = 1;
+  VisibilityLevel visibility = 2;
+  CollaborationSettings collaboration_settings = 3;
+}
+
+message DeleteWishlistRequest {
+  string wishlist_id = 1;
+  string user_id = 2;
+}
+
+message AddWishlistItemRequest {
+  string wishlist_id = 1;
+  WishlistItem item = 2;
+}
+
+message UpdateWishlistItemRequest {
+  string wishlist_id = 1;
+  WishlistItem item = 2;
+}
+
+message RemoveWishlistItemRequest {
+  string wishlist_id = 1;
+  string item_id = 2;
+}
+
+message ShareWishlistRequest {
+  string wishlist_id = 1;
+  repeated string user_ids = 2;
+  VisibilityLevel visibility = 3;
+}
+
+message UpdateWishlistCollaboratorsRequest {
+  string wishlist_id = 1;
+  repeated string collaborator_ids = 2;
+  CollaborationSettings collaboration_settings = 3;
+}
+
+message CreatePaymentIntentRequest {
+  string user_id = 1;
+  double amount = 2;
+  string currency = 3;
+  PaymentType payment_type = 4;
+  string description = 5;
+  map<string, string> metadata = 6;
+}
+
+message ConfirmPaymentRequest {
+  string payment_intent_id = 1;
+  string payment_method_id = 2;
+}
+
+message GetPaymentStatusRequest {
+  string payment_intent_id = 1;
+}
+
+message RefundPaymentRequest {
+  string payment_intent_id = 1;
+  double amount = 2;
+  string reason = 3;
+}
+
+message ListTransactionsRequest {
+  string user_id = 1;
+  google.protobuf.Timestamp start_date = 2;
+  google.protobuf.Timestamp end_date = 3;
+  int32 page_size = 4;
+  string page_token = 5;
+}
+
+// Response messages
+message ListTransactionsResponse {
+  repeated PaymentIntent transactions = 1;
+  string next_page_token = 2;
+  int32 total_count = 3;
+}
+
+// Comprehensive gRPC service for commerce operations
+service CommerceService {
+  // Wishlist management
+  rpc CreateWishlist(CreateWishlistRequest) returns (Wishlist);
+  rpc GetWishlist(GetWishlistRequest) returns (Wishlist);
+  rpc UpdateWishlist(UpdateWishlistRequest) returns (Wishlist);
+  rpc DeleteWishlist(DeleteWishlistRequest) returns (google.protobuf.Empty);
+  
+  // Wishlist item operations
+  rpc AddWishlistItem(AddWishlistItemRequest) returns (Wishlist);
+  rpc UpdateWishlistItem(UpdateWishlistItemRequest) returns (Wishlist);
+  rpc RemoveWishlistItem(RemoveWishlistItemRequest) returns (Wishlist);
+  
+  // Wishlist sharing and collaboration
+  rpc ShareWishlist(ShareWishlistRequest) returns (Wishlist);
+  rpc UpdateWishlistCollaborators(UpdateWishlistCollaboratorsRequest) returns (Wishlist);
+  
+  // Payment operations
+  rpc CreatePaymentIntent(CreatePaymentIntentRequest) returns (PaymentIntent);
+  rpc ConfirmPayment(ConfirmPaymentRequest) returns (PaymentIntent);
+  rpc GetPaymentStatus(GetPaymentStatusRequest) returns (PaymentIntent);
+  rpc RefundPayment(RefundPaymentRequest) returns (PaymentIntent);
+  rpc ListTransactions(ListTransactionsRequest) returns (ListTransactionsResponse);
+}
