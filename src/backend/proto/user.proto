@@ -1,0 +1,154 @@
+syntax = "proto3";
+
+package user.v1;
+
+import "google/protobuf/timestamp.proto";  // v3.0.0
+import "google/protobuf/empty.proto";      // v3.0.0
+import "google/protobuf/wrappers.proto";   // v3.0.0
+
+option go_package = "./user";
+option java_package = "com.spatialtag.proto.user";
+option java_multiple_files = true;
+option csharp_namespace = "SpatialTag.Proto.User";
+
+// Enhanced user status level enumeration
+enum StatusLevel {
+  STATUS_LEVEL_UNSPECIFIED = 0;
+  STATUS_LEVEL_REGULAR = 1;
+  STATUS_LEVEL_ELITE = 2;
+  STATUS_LEVEL_RARE = 3;
+}
+
+// User's spatial location information
+message Location {
+  double latitude = 1;
+  double longitude = 2;
+  double accuracy = 3;
+  google.protobuf.Timestamp timestamp = 4;
+}
+
+// User engagement and activity statistics
+message UserStats {
+  int32 tags_created = 1;
+  int32 interactions_count = 2;
+  int32 connections_made = 3;
+  double engagement_score = 4;
+  google.protobuf.Timestamp last_status_change = 5;
+}
+
+// Notification preferences
+message NotificationSettings {
+  bool enable_push = 1;
+  bool enable_email = 2;
+  bool nearby_user_alerts = 3;
+  bool tag_interaction_alerts = 4;
+  bool status_change_alerts = 5;
+}
+
+// Privacy configuration
+message PrivacySettings {
+  bool profile_visible = 1;
+  bool location_visible = 2;
+  bool status_visible = 3;
+  bool allow_discovery = 4;
+}
+
+// Location-based settings
+message LocationSettings {
+  bool background_tracking = 1;
+  bool high_precision = 2;
+  int32 update_frequency = 3;  // in seconds
+}
+
+// Interaction preferences
+message InteractionPreferences {
+  double interaction_radius = 1;  // in meters
+  bool auto_accept_elite = 2;
+  bool auto_accept_rare = 3;
+  repeated string blocked_users = 4;
+}
+
+// Expanded user preferences and settings
+message UserPreferences {
+  bool visibility_enabled = 1;
+  double discovery_radius = 2;
+  NotificationSettings notifications = 3;
+  PrivacySettings privacy = 4;
+  LocationSettings location = 5;
+  InteractionPreferences interactions = 6;
+}
+
+// Comprehensive user profile representation
+message User {
+  string id = 1;
+  string email = 2;
+  string display_name = 3;
+  string profile_image_url = 4;
+  StatusLevel status_level = 5;
+  google.protobuf.Timestamp created_at = 6;
+  google.protobuf.Timestamp last_active = 7;
+  bool is_verified = 8;
+  UserPreferences preferences = 9;
+  UserStats stats = 10;
+  Location last_known_location = 11;
+}
+
+// Request messages
+message CreateUserRequest {
+  string email = 1;
+  string display_name = 2;
+  string profile_image_url = 3;
+  UserPreferences preferences = 4;
+}
+
+message UpdateUserRequest {
+  string user_id = 1;
+  google.protobuf.StringValue display_name = 2;
+  google.protobuf.StringValue profile_image_url = 3;
+  UserPreferences preferences = 4;
+}
+
+message GetNearbyUsersRequest {
+  Location location = 1;
+  double radius = 2;  // in meters
+  int32 limit = 3;
+  repeated StatusLevel filter_status_levels = 4;
+}
+
+message UpdateLocationRequest {
+  string user_id = 1;
+  Location location = 2;
+}
+
+message UpdateStatusRequest {
+  string user_id = 1;
+  StatusLevel new_status = 2;
+}
+
+// Response messages
+message GetNearbyUsersResponse {
+  repeated NearbyUser users = 1;
+}
+
+message NearbyUser {
+  User user = 1;
+  double distance = 2;  // in meters
+}
+
+// Comprehensive gRPC service for user management and discovery
+service UserService {
+  // Create a new user profile
+  rpc CreateUser(CreateUserRequest) returns (User);
+
+  // Update existing user profile
+  rpc UpdateUser(UpdateUserRequest) returns (User);
+
+  // Get nearby users based on location and filters
+  rpc GetNearbyUsers(GetNearbyUsersRequest) returns (GetNearbyUsersResponse);
+
+  // Update user's location
+  rpc UpdateLocation(UpdateLocationRequest) returns (google.protobuf.Empty);
+
+  // Update user's status level
+  rpc UpdateStatus(UpdateStatusRequest) returns (User);
+}
