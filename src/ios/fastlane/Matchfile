@@ -1,0 +1,44 @@
+# fastlane-match latest
+
+# Git repository URL containing certificates and profiles
+git_url("git@github.com:spatialtag/certificates.git")
+
+# Use Git as storage backend for certificates
+storage_mode("git")
+
+# Certificate type for App Store distribution
+type("appstore")
+
+# Bundle identifiers for main app and extensions
+app_identifier(["com.spatialtag.app", "com.spatialtag.app.extension"])
+
+# Apple Developer Portal username
+username("developer@spatialtag.com")
+
+# Developer Portal Team ID
+team_id("SPATIAL_TEAM_ID")
+
+# Git branch containing certificates
+git_branch("main")
+
+# Platform specification
+platform("ios")
+
+# Enable readonly mode for CI environments
+readonly(true)
+
+# Advanced security settings
+git_basic_authorization(ENV["MATCH_GIT_BASIC_AUTHORIZATION"]) # Base64 encoded credentials
+shallow_clone(true) # Faster cloning for CI
+clone_branch_directly(true) # More efficient Git operations
+skip_docs(true) # Skip documentation generation
+verbose(true) # Detailed logging for debugging
+
+# Certificate and profile settings
+force_for_new_devices(true) # Auto-regenerate profiles for new devices
+generate_apple_certs(true) # Generate Apple Worldwide Developer Relations certificate
+skip_provisioning_profiles(false) # Include provisioning profile management
+api_key_path(ENV["APPLE_API_KEY_PATH"]) # Path to App Store Connect API key for CI
+
+# Timeout configurations
+timeout(30) # Timeout for network operations in seconds
