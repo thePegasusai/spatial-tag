@@ -1,0 +1,157 @@
+name: Production Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+  packages: write
+  deployments: write
+  releases: write
+  security-events: write
+
+env:
+  DOCKER_REGISTRY: ${{ secrets.DOCKER_REGISTRY }}
+  DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+  DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+  KUBE_CONFIG_PROD: ${{ secrets.KUBE_CONFIG_PROD }}
+  APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+  DATADOG_API_KEY: ${{ secrets.DATADOG_API_KEY }}
+  SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+  COMPLIANCE_CHECK_TOKEN: ${{ secrets.COMPLIANCE_CHECK_TOKEN }}
+
+concurrency:
+  group: production_deploy
+  cancel-in-progress: false
+
+jobs:
+  security-compliance:
+    name: Security and Compliance Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run security scan
+        uses: snyk/actions/scan@v1
+        with:
+          args: --severity-threshold=high
+        env:
+          SNYK_TOKEN: ${{ env.SNYK_TOKEN }}
+
+      - name: Verify GDPR compliance
+        run: |
+          ./scripts/compliance/gdpr-check.sh
+        env:
+          COMPLIANCE_TOKEN: ${{ env.COMPLIANCE_CHECK_TOKEN }}
+
+      - name: Validate data handling
+        run: |
+          ./scripts/compliance/data-handling-audit.sh
+
+  create-release:
+    needs: security-compliance
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Create GitHub release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          draft: false
+          prerelease: false
+          body_path: CHANGELOG.md
+
+  deploy-backend:
+    needs: create-release
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment:
+      name: production
+      url: https://api.spatialtag.com
+    steps:
+      - name: Configure Datadog monitoring
+        uses: datadog/action@v1
+        with:
+          api_key: ${{ env.DATADOG_API_KEY }}
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Login to Docker Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.DOCKER_REGISTRY }}
+          username: ${{ env.DOCKER_USERNAME }}
+          password: ${{ env.DOCKER_PASSWORD }}
+
+      - name: Deploy with canary strategy
+        run: |
+          kubectl apply -f k8s/production/canary/
+          kubectl rollout status deployment/api-gateway-canary
+          kubectl rollout status deployment/spatial-engine-canary
+          kubectl rollout status deployment/tag-service-canary
+        env:
+          KUBECONFIG: ${{ env.KUBE_CONFIG_PROD }}
+
+      - name: Health validation
+        run: |
+          ./scripts/monitoring/health-check.sh
+          ./scripts/monitoring/performance-baseline.sh
+          ./scripts/monitoring/error-rate-check.sh
+
+  deploy-ios:
+    needs: create-release
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - name: Validate LiDAR components
+        run: |
+          ./src/ios/ci/build.sh validate_environment
+
+      - name: Build and deploy iOS app
+        run: |
+          ./src/ios/ci/deploy.sh
+        env:
+          DEPLOY_TARGET: appstore
+          APP_STORE_CONNECT_API_KEY: ${{ env.APP_STORE_CONNECT_API_KEY }}
+
+      - name: Verify App Store submission
+        run: |
+          ./src/ios/ci/deploy.sh verify_submission
+
+  post-deployment:
+    needs: [deploy-backend, deploy-ios]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Run integration tests
+        run: |
+          ./scripts/testing/integration-suite.sh
+
+      - name: Validate performance metrics
+        run: |
+          ./scripts/monitoring/validate-metrics.sh
+        env:
+          DATADOG_API_KEY: ${{ env.DATADOG_API_KEY }}
+
+      - name: Configure alerts
+        run: |
+          ./scripts/monitoring/setup-alerts.sh
+        env:
+          DATADOG_API_KEY: ${{ env.DATADOG_API_KEY }}
+
+      - name: Send deployment notification
+        if: always()
+        run: |
+          curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
+          -H 'Content-Type: application/json' \
+          -d '{"text":"Production deployment completed: ${{ job.status }}"}'
