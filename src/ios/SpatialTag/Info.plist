@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Core App Identity -->
+    <key>CFBundleIdentifier</key>
+    <string>com.spatialtag.app</string>
+    <key>CFBundleDisplayName</key>
+    <string>Spatial Tag</string>
+    <key>CFBundleVersion</key>
+    <string>1.0.0</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0</string>
+    
+    <!-- Device and OS Requirements -->
+    <key>LSRequiresIPhoneOS</key>
+    <true/>
+    <key>MinimumOSVersion</key>
+    <string>15.0</string>
+    <key>UIRequiredDeviceCapabilities</key>
+    <array>
+        <string>armv8</string>
+        <string>lidar</string>
+        <string>arkit</string>
+        <string>metal</string>
+        <string>location-services</string>
+    </array>
+    <key>UIDeviceFamily</key>
+    <array>
+        <integer>1</integer>
+    </array>
+    
+    <!-- Interface Orientation -->
+    <key>UISupportedInterfaceOrientations</key>
+    <array>
+        <string>UIInterfaceOrientationPortrait</string>
+        <string>UIInterfaceOrientationLandscapeLeft</string>
+        <string>UIInterfaceOrientationLandscapeRight</string>
+    </array>
+    
+    <!-- UI Configuration -->
+    <key>UILaunchStoryboardName</key>
+    <string>LaunchScreen</string>
+    <key>UIUserInterfaceStyle</key>
+    <string>Dark</string>
+    <key>UIViewControllerBasedStatusBarAppearance</key>
+    <true/>
+    <key>UIStatusBarStyle</key>
+    <string>UIStatusBarStyleLightContent</string>
+    
+    <!-- Privacy Usage Descriptions -->
+    <key>NSCameraUsageDescription</key>
+    <string>Spatial Tag requires camera access for AR features and LiDAR scanning to enable spatial awareness and tag placement within your environment</string>
+    <key>NSLocationWhenInUseUsageDescription</key>
+    <string>Your location is used to discover nearby tags and users within a 50-meter radius for social connections</string>
+    <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+    <string>Background location enables discovery of nearby tags and users even when the app is not active, enhancing your connection opportunities</string>
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>Photo library access is needed to attach images to your tags and customize your profile</string>
+    <key>NSBluetoothAlwaysUsageDescription</key>
+    <string>Bluetooth is used for precise indoor positioning and user discovery within close proximity</string>
+    <key>NSFaceIDUsageDescription</key>
+    <string>Face ID provides secure access to your Spatial Tag account and protects your personal information</string>
+    
+    <!-- Background Capabilities -->
+    <key>UIBackgroundModes</key>
+    <array>
+        <string>location</string>
+        <string>fetch</string>
+        <string>remote-notification</string>
+    </array>
+    
+    <!-- Network Security Configuration -->
+    <key>NSAppTransportSecurity</key>
+    <dict>
+        <key>NSAllowsArbitraryLoads</key>
+        <false/>
+        <key>NSExceptionDomains</key>
+        <dict>
+            <key>api.spatialtag.com</key>
+            <dict>
+                <key>NSExceptionAllowsInsecureHTTPLoads</key>
+                <false/>
+                <key>NSExceptionRequiresForwardSecrecy</key>
+                <true/>
+                <key>NSExceptionMinimumTLSVersion</key>
+                <string>TLSv1.3</string>
+                <key>NSRequiresCertificateTransparency</key>
+                <true/>
+            </dict>
+        </dict>
+    </dict>
+    
+    <!-- Encryption Declaration -->
+    <key>ITSAppUsesNonExemptEncryption</key>
+    <false/>
+    
+    <!-- URL Scheme Configuration -->
+    <key>CFBundleURLTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>spatialtag</string>
+            </array>
+            <key>CFBundleURLName</key>
+            <string>com.spatialtag.app</string>
+        </dict>
+    </array>
+</dict>
+</plist>
