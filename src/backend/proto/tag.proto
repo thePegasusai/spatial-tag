@@ -1,0 +1,185 @@
+syntax = "proto3";
+
+package tag.v1;
+
+option go_package = "./tag";
+option java_package = "com.spatialtag.proto.tag";
+option java_multiple_files = true;
+option csharp_namespace = "SpatialTag.Proto.Tag";
+
+import "google/protobuf/timestamp.proto";  // v3.0.0
+import "google/protobuf/empty.proto";      // v3.0.0
+import "google/protobuf/wrappers.proto";   // v3.0.0
+import "spatial.proto";
+import "user.proto";
+
+// Visibility level for tags
+enum TagVisibility {
+  TAG_VISIBILITY_UNSPECIFIED = 0;
+  TAG_VISIBILITY_PUBLIC = 1;
+  TAG_VISIBILITY_PRIVATE = 2;
+  TAG_VISIBILITY_ELITE_ONLY = 3;
+  TAG_VISIBILITY_RARE_ONLY = 4;
+}
+
+// Current status of the tag
+enum TagStatus {
+  TAG_STATUS_UNSPECIFIED = 0;
+  TAG_STATUS_ACTIVE = 1;
+  TAG_STATUS_EXPIRED = 2;
+  TAG_STATUS_DELETED = 3;
+  TAG_STATUS_FLAGGED = 4;
+  TAG_STATUS_HIDDEN = 5;
+}
+
+// Type of tag update event
+enum UpdateType {
+  UPDATE_TYPE_UNSPECIFIED = 0;
+  UPDATE_TYPE_CREATED = 1;
+  UPDATE_TYPE_MODIFIED = 2;
+  UPDATE_TYPE_DELETED = 3;
+  UPDATE_TYPE_EXPIRED = 4;
+}
+
+// Represents a spatial tag with location and content
+message Tag {
+  string id = 1;
+  string creator_id = 2;
+  spatial.v1.Location location = 3;
+  string content = 4;
+  google.protobuf.Timestamp created_at = 5;
+  google.protobuf.Timestamp expires_at = 6;
+  double visibility_radius = 7;
+  TagVisibility visibility = 8;
+  TagStatus status = 9;
+  int32 version = 10;
+  map<string, string> metadata = 11;
+  repeated string media_urls = 12;
+  user.v1.StatusLevel min_viewer_status = 13;
+}
+
+// Statistics and analytics data for tags
+message TagStats {
+  int64 total_views = 1;
+  int64 unique_viewers = 2;
+  int64 interactions = 3;
+  double avg_view_duration = 4;
+  map<string, int64> interaction_types = 5;
+  double engagement_rate = 6;
+  repeated string top_interactors = 7;
+}
+
+// Request to create a new tag
+message CreateTagRequest {
+  string creator_id = 1;
+  spatial.v1.Location location = 2;
+  string content = 3;
+  google.protobuf.Timestamp expires_at = 4;
+  double visibility_radius = 5;
+  TagVisibility visibility = 6;
+  map<string, string> metadata = 7;
+  repeated string media_urls = 8;
+  user.v1.StatusLevel min_viewer_status = 9;
+}
+
+// Request for creating multiple tags
+message BatchCreateTagsRequest {
+  repeated CreateTagRequest tags = 1;
+  bool validate_only = 2;
+}
+
+// Request to update an existing tag
+message UpdateTagRequest {
+  string tag_id = 1;
+  google.protobuf.StringValue content = 2;
+  google.protobuf.Timestamp expires_at = 3;
+  TagVisibility visibility = 4;
+  map<string, string> metadata = 5;
+  repeated string media_urls = 6;
+}
+
+// Request to get nearby tags
+message GetNearbyTagsRequest {
+  spatial.v1.Location location = 1;
+  double radius = 2;
+  TagVisibility visibility_filter = 3;
+  user.v1.StatusLevel viewer_status = 4;
+  bool include_expired = 5;
+  int32 limit = 6;
+  string user_id = 7;
+}
+
+// Response containing nearby tags
+message GetNearbyTagsResponse {
+  repeated NearbyTag tags = 1;
+  double search_radius = 2;
+  int32 total_count = 3;
+}
+
+// Tag with distance information
+message NearbyTag {
+  Tag tag = 1;
+  double distance = 2;
+  bool is_visible = 3;
+}
+
+// Request to get tags by user
+message GetTagsByUserRequest {
+  string user_id = 1;
+  TagStatus status_filter = 2;
+  int32 limit = 3;
+  int32 offset = 4;
+}
+
+// Response containing user's tags
+message GetTagsByUserResponse {
+  repeated Tag tags = 1;
+  int32 total_count = 2;
+  bool has_more = 3;
+}
+
+// Event containing tag updates
+message TagUpdateEvent {
+  Tag tag = 1;
+  UpdateType update_type = 2;
+  google.protobuf.Timestamp update_time = 3;
+  string updater_id = 4;
+}
+
+// Request to stream tag updates
+message StreamTagUpdatesRequest {
+  spatial.v1.Location location = 1;
+  double radius = 2;
+  repeated TagVisibility visibility_filters = 3;
+  user.v1.StatusLevel viewer_status = 4;
+}
+
+// Service for managing spatial tags
+service TagService {
+  // Create a new tag
+  rpc CreateTag(CreateTagRequest) returns (Tag);
+
+  // Create multiple tags in a single request
+  rpc BatchCreateTags(BatchCreateTagsRequest) returns (repeated Tag);
+
+  // Get a specific tag by ID
+  rpc GetTag(google.protobuf.StringValue) returns (Tag);
+
+  // Update an existing tag
+  rpc UpdateTag(UpdateTagRequest) returns (Tag);
+
+  // Delete a tag
+  rpc DeleteTag(google.protobuf.StringValue) returns (google.protobuf.Empty);
+
+  // Get tags near a location
+  rpc GetNearbyTags(GetNearbyTagsRequest) returns (GetNearbyTagsResponse);
+
+  // Get tags created by a specific user
+  rpc GetTagsByUser(GetTagsByUserRequest) returns (GetTagsByUserResponse);
+
+  // Get statistics for a tag
+  rpc GetTagStats(google.protobuf.StringValue) returns (TagStats);
+
+  // Stream real-time tag updates
+  rpc StreamTagUpdates(StreamTagUpdatesRequest) returns (stream TagUpdateEvent);
+}
