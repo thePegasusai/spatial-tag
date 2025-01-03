@@ -1,0 +1,89 @@
+# Jaeger All-in-One Configuration v1.45.0
+# Purpose: Provides comprehensive distributed tracing for the Spatial Tag platform
+# Combines collector, query and storage components in a single deployment
+
+apiVersion: jaegertracing.io/v1
+kind: Jaeger
+metadata:
+  name: spatial-tag-jaeger
+  namespace: monitoring
+  labels:
+    app: spatial-tag
+    component: tracing
+
+spec:
+  strategy: allInOne
+  allInOne:
+    image: jaegertracing/all-in-one:1.45
+    options:
+      # General configuration
+      log-level: info
+      memory.max-traces: "50000"
+      sampling.strategies-file: /etc/jaeger/sampling.json
+      query.base-path: /jaeger
+    resources:
+      limits:
+        memory: 1Gi
+        cpu: 1000m
+      requests:
+        memory: 512Mi
+        cpu: 500m
+
+  ingress:
+    enabled: true
+    annotations:
+      kubernetes.io/ingress.class: nginx
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+      nginx.ingress.kubernetes.io/backend-protocol: HTTP
+    hosts:
+      - jaeger.spatial-tag.local
+
+  storage:
+    type: memory
+    options:
+      memory:
+        max-traces: "50000"
+
+  query:
+    options:
+      # Query service configuration optimized for <100ms response time
+      query.max-clock-skew-adjustment: 10s
+      query.timeout: 30s
+      query.max-result-window: "10000"
+    serviceType: ClusterIP
+    ports:
+      - name: query
+        port: 16686
+        targetPort: 16686
+        protocol: TCP
+
+  collector:
+    options:
+      # Collector configuration for high throughput
+      collector.queue-size: "1000"
+      collector.num-workers: "50"
+      collector.host-port: ":14268"
+      collector.grpc.host-port: ":14250"
+    serviceType: ClusterIP
+    ports:
+      - name: jaeger-collector-http
+        port: 14268
+        targetPort: 14268
+        protocol: TCP
+      - name: jaeger-collector-grpc
+        port: 14250
+        targetPort: 14250
+        protocol: TCP
+
+---
+# Global environment variables for Jaeger components
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: jaeger-env-config
+  namespace: monitoring
+data:
+  JAEGER_AGENT_PORT: "6831"
+  JAEGER_COLLECTOR_PORT_HTTP: "14268"
+  JAEGER_COLLECTOR_PORT_GRPC: "14250"
+  JAEGER_QUERY_PORT: "16686"
