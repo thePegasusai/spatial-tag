@@ -1,0 +1,133 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: spatial-tag-config
+  namespace: spatial-tag
+  labels:
+    app: spatial-tag
+    environment: production
+data:
+  # Global application settings
+  APP_ENV: "production"
+  LOG_LEVEL: "info"
+  MONITORING_ENABLED: "true"
+  TRACING_ENABLED: "true"
+
+  # API Gateway Configuration
+  api-gateway.yaml: |
+    cors:
+      allowedOrigins:
+        - "https://spatialtag.com"
+        - "https://*.spatialtag.com"
+      allowedMethods:
+        - "GET"
+        - "POST"
+        - "PUT"
+        - "DELETE"
+        - "OPTIONS"
+      maxAge: 86400
+    rateLimits:
+      userManagement: 100
+      tagOperations: 50
+      spatialQueries: 200
+      wishlistManagement: 50
+      statusUpdates: 20
+    monitoring:
+      metricsInterval: 15
+      retentionDays: 30
+      alertThresholds:
+        errorRate: 0.01
+        latencyP95: 200
+        cpuThreshold: 85
+
+  # Spatial Engine Configuration
+  spatial-engine.yaml: |
+    lidarSettings:
+      scanningRange: 50
+      refreshRate: 30
+      precision: 0.01
+      fieldOfView: 120
+    proximitySettings:
+      defaultRadius: 50
+      maxRadius: 100
+      updateFrequency: 1
+    performanceMetrics:
+      maxLatencyMs: 100
+      maxMemoryUsageMb: 512
+      maxCpuUsagePercent: 80
+      monitoringInterval: 15
+
+  # Tag Service Configuration
+  tag-service.yaml: |
+    mongodb:
+      database: "spatial_tag"
+      collection: "tags"
+      poolSize: 100
+      writeTimeout: 5000
+    tagSettings:
+      defaultDuration: 86400
+      maxDuration: 604800
+      cleanupInterval: 3600
+      visibilityRadius: 50
+    cacheConfig:
+      enabled: true
+      ttl: 300
+      maxSize: 10000
+      checkPeriod: 60
+
+  # User Service Configuration
+  user-service.yaml: |
+    database:
+      poolSize: 50
+      idleTimeout: 300
+      maxLifetime: 3600
+    userSettings:
+      eliteThreshold: 500
+      rareThreshold: 1000
+      pointsDecayRate: 0.1
+      statusUpdateInterval: 3600
+    metrics:
+      enabled: true
+      interval: 15
+      retentionDays: 30
+      alertThresholds:
+        errorRate: 0.01
+        latencyP95: 200
+
+  # Commerce Service Configuration
+  commerce-service.yaml: |
+    database:
+      poolSize: 30
+      maxConnections: 100
+      connectionTimeout: 5000
+    wishlistSettings:
+      maxItems: 100
+      shareLimit: 50
+      updateInterval: 300
+    transactionMetrics:
+      enabled: true
+      interval: 15
+      retentionPeriod: 90
+      alertThresholds:
+        failureRate: 0.001
+        avgProcessingTime: 1000
+
+  # Monitoring Configuration
+  monitoring.yaml: |
+    metrics:
+      interval: 15
+      retentionDays: 30
+      exporters:
+        - prometheus
+        - datadog
+    alerting:
+      errorRate: 0.01
+      latencyP95: 200
+      cpuThreshold: 85
+      memoryThreshold: 90
+    tracing:
+      enabled: true
+      samplingRate: 0.1
+      exporters:
+        - jaeger
+        - zipkin
