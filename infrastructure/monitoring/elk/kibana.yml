@@ -1,0 +1,84 @@
+# Kibana Configuration for Spatial Tag Platform
+# Version: 8.0.0 (@elastic/kibana)
+
+#----------------------
+# Server Settings
+#----------------------
+server.name: spatial-tag-kibana
+server.host: "0.0.0.0"
+server.port: 5601
+server.publicBaseUrl: ${KIBANA_PUBLIC_URL}
+server.maxPayloadBytes: 10485760
+server.compression.enabled: true
+server.keepaliveTimeout: 120000
+
+#----------------------
+# Elasticsearch Settings
+#----------------------
+elasticsearch.hosts: ["http://elasticsearch:9200"]
+elasticsearch.username: ${ELASTICSEARCH_USERNAME}
+elasticsearch.password: ${ELASTICSEARCH_PASSWORD}
+elasticsearch.requestTimeout: 30000
+elasticsearch.shardTimeout: 30000
+elasticsearch.ssl.verificationMode: "certificate"
+elasticsearch.pingTimeout: 3000
+
+#----------------------
+# Security Settings
+#----------------------
+xpack.security.enabled: true
+xpack.security.encryptionKey: ${ENCRYPTION_KEY}
+xpack.security.session.idleTimeout: "1h"
+xpack.security.session.lifespan: "24h"
+xpack.security.audit.enabled: true
+xpack.security.audit.appender.type: "file"
+xpack.security.audit.appender.path: "/var/log/kibana/audit.log"
+xpack.security.authc.providers: ["basic", "token"]
+xpack.security.authc.oidc.realm: "oidc1"
+
+#----------------------
+# Monitoring Settings
+#----------------------
+xpack.monitoring.enabled: true
+xpack.monitoring.kibana.collection.enabled: true
+xpack.monitoring.ui.container.elasticsearch.enabled: true
+xpack.monitoring.collection.interval: "10s"
+xpack.monitoring.min_interval_seconds: 10
+xpack.monitoring.ui.min_interval_seconds: 5
+xpack.monitoring.ui.container.kubernetes.enabled: true
+
+#----------------------
+# Logging Settings
+#----------------------
+logging.root.level: "info"
+logging.appenders.file.type: "file"
+logging.appenders.file.fileName: "/var/log/kibana/kibana.log"
+logging.appenders.file.layout.type: "pattern"
+logging.appenders.file.layout.pattern: "[%date][%level][%logger][%thread] %message"
+logging.appenders.rolling.type: "rolling_file"
+logging.appenders.rolling.fileName: "/var/log/kibana/rolling.log"
+logging.appenders.rolling.policy.type: "time_based"
+
+#----------------------
+# Index Settings
+#----------------------
+kibana.index: ".kibana"
+kibana.defaultAppId: "discover"
+kibana.autocompleteTimeout: "1000"
+kibana.autocompleteTerminateAfter: 100000
+kibana.maxBucketSize: 50000
+
+#----------------------
+# Telemetry Settings
+#----------------------
+telemetry.enabled: false
+telemetry.optIn: false
+telemetry.optInStatusUrl: ""
+
+#----------------------
+# Visualization Settings
+#----------------------
+visualization.dimming.maxBuckets: 100000
+visualization.dimming.minBucketSize: 1
+visualization.loadingDelay: "1s"
+visualization.dqlQuery.enable: true
