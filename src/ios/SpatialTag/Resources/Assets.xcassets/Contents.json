@@ -1,0 +1,15 @@
+{
+  "info": {
+    "version": 1,
+    "author": "xcode"
+  },
+  "properties": {
+    "provides-namespace": true,
+    "supports-dark-mode": true,
+    "supports-dynamic-colors": true,
+    "color-space": "srgb",
+    "rendering-intent": "template",
+    "device-specific-assets": true,
+    "preserves-vector-representation": true
+  }
+}
