@@ -1,0 +1,67 @@
+# Grafana v9.5.0 Datasource Configuration
+# Configures monitoring data sources for metrics (Prometheus), logs (Elasticsearch), and tracing (Jaeger)
+# with optimized settings for high performance and reliability
+
+apiVersion: 1
+
+datasources:
+  # Prometheus datasource for metrics collection
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus-server:9090
+    isDefault: true
+    version: 1
+    editable: false
+    jsonData:
+      # 15s interval for high-frequency metric collection
+      timeInterval: "15s"
+      # 30s timeout for query operations
+      queryTimeout: "30s"
+      httpMethod: POST
+      # Link exemplars to Jaeger traces
+      exemplarTraceIdDestinations:
+        - name: trace_id
+          datasourceUid: jaeger
+
+  # Elasticsearch datasource for log aggregation
+  - name: Elasticsearch
+    type: elasticsearch
+    access: proxy
+    url: http://elasticsearch:9200
+    database: spatial-tag-logs-*
+    isDefault: false
+    version: 1
+    editable: false
+    jsonData:
+      timeField: "@timestamp"
+      esVersion: "8.x"
+      # Optimize concurrent shard requests for better performance
+      maxConcurrentShardRequests: 5
+      logMessageField: "message"
+      logLevelField: "level"
+      interval: "Daily"
+      # 1m interval for log collection
+      timeInterval: "1m"
+
+  # Jaeger datasource for distributed tracing
+  - name: Jaeger
+    type: jaeger
+    access: proxy
+    url: http://spatial-tag-jaeger-query:16686
+    isDefault: false
+    version: 1
+    editable: false
+    jsonData:
+      # Enable node graph visualization
+      nodeGraph:
+        enabled: true
+      # Configure trace-to-log correlation
+      tracesToLogs:
+        datasourceUid: elasticsearch
+        tags: ["service.name", "trace.id"]
+        mappedTags:
+          - key: service.name
+            value: service
+          - key: trace.id
+            value: traceID
