@@ -1,0 +1,75 @@
+[build-system]
+requires = ["setuptools>=45", "wheel", "build>=0.7"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "commerce-service"
+version = "1.0.0"
+description = "High-performance commerce microservice for secure wishlist management and payment processing"
+requires-python = ">=3.11"
+authors = [
+    {name = "Spatial Tag Team"}
+]
+license = "Proprietary"
+classifiers = [
+    "Private :: Do Not Upload",
+    "Programming Language :: Python :: 3.11",
+    "Operating System :: OS Independent"
+]
+
+dependencies = [
+    "fastapi==0.100.0",
+    "uvicorn==0.23.0",
+    "grpcio==1.56.0",
+    "grpcio-tools==1.56.0",
+    "sqlalchemy==2.0.0",
+    "alembic==1.11.0",
+    "psycopg2-binary==2.9.0",
+    "pydantic==2.0.0",
+    "stripe==5.4.0",
+    "redis==4.6.0",
+    "prometheus-client==0.17.0",
+    "opentelemetry-api==1.20.0",
+    "opentelemetry-sdk==1.20.0",
+    "python-jose==3.3.0",
+    "passlib==1.7.4"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==7.4.0",
+    "pytest-cov==4.1.0",
+    "pytest-asyncio==0.21.0",
+    "black==23.7.0",
+    "isort==5.12.0",
+    "mypy==1.4.0",
+    "flake8==6.1.0",
+    "docker==6.1.0"
+]
+
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+include = "\.pyi?$"
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+line_length = 100
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+
+[tool.pytest]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-v --cov=src --cov-report=term-missing"
+
+[tool.flake8]
+max-line-length = 100
+extend-ignore = ["E203", "W503"]
+exclude = [".git", "__pycache__", "build", "dist"]
