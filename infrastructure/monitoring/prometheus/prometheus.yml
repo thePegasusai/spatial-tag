@@ -1,0 +1,137 @@
+# Prometheus Configuration v2.45.0
+# Global configuration settings for the Spatial Tag platform monitoring
+
+global:
+  # Scrape metrics every 15 seconds to ensure 99.9% uptime monitoring
+  scrape_interval: 15s
+  # Evaluate rules every 15 seconds for timely alerts
+  evaluation_interval: 15s
+  # Timeout scrapes after 10s to maintain <100ms response time target
+  scrape_timeout: 10s
+
+# Load alert rules from external file
+rule_files:
+  - "rules/alerts.yml"
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - "alertmanager:9093"
+
+# Scrape configurations for all platform services
+scrape_configs:
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # API Gateway monitoring
+  - job_name: 'api-gateway'
+    kubernetes_sd_configs:
+      - role: pod
+        namespaces:
+          names: ['spatial-tag']
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_label_app]
+        regex: 'api-gateway'
+        action: keep
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'http_request_duration_seconds.*'
+        action: keep
+    # Monitor 1 CPU, 2GB RAM limits
+    honor_labels: true
+    scheme: https
+    tls_config:
+      insecure_skip_verify: false
+
+  # Spatial Engine monitoring
+  - job_name: 'spatial-engine'
+    kubernetes_sd_configs:
+      - role: pod
+        namespaces:
+          names: ['spatial-tag']
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_label_app]
+        regex: 'spatial-engine'
+        action: keep
+    # Monitor 2 CPU, 4GB RAM limits
+    honor_labels: true
+    scheme: https
+    tls_config:
+      insecure_skip_verify: false
+
+  # Tag Service monitoring
+  - job_name: 'tag-service'
+    kubernetes_sd_configs:
+      - role: pod
+        namespaces:
+          names: ['spatial-tag']
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_label_app]
+        regex: 'tag-service'
+        action: keep
+    # Monitor 1 CPU, 2GB RAM limits
+    honor_labels: true
+    scheme: https
+    tls_config:
+      insecure_skip_verify: false
+
+  # User Service monitoring
+  - job_name: 'user-service'
+    kubernetes_sd_configs:
+      - role: pod
+        namespaces:
+          names: ['spatial-tag']
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_label_app]
+        regex: 'user-service'
+        action: keep
+    # Monitor 1 CPU, 2GB RAM limits
+    honor_labels: true
+    scheme: https
+    tls_config:
+      insecure_skip_verify: false
+
+  # Commerce Service monitoring
+  - job_name: 'commerce-service'
+    kubernetes_sd_configs:
+      - role: pod
+        namespaces:
+          names: ['spatial-tag']
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_label_app]
+        regex: 'commerce-service'
+        action: keep
+    # Monitor 1 CPU, 2GB RAM limits
+    honor_labels: true
+    scheme: https
+    tls_config:
+      insecure_skip_verify: false
+
+  # Node Exporter for host metrics
+  - job_name: 'node'
+    kubernetes_sd_configs:
+      - role: node
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_node_label_kubernetes_io_hostname]
+        target_label: instance
+    scheme: https
+    tls_config:
+      insecure_skip_verify: false
+
+  # kube-state-metrics for Kubernetes object metrics
+  - job_name: 'kube-state-metrics'
+    kubernetes_sd_configs:
+      - role: service
+        namespaces:
+          names: ['kube-system']
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_service_name]
+        regex: 'kube-state-metrics'
+        action: keep
+    scheme: https
+    tls_config:
+      insecure_skip_verify: false
